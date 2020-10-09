@@ -1,0 +1,37 @@
+<div class="example-container mat-elevation-z8">
+  <mat-drawer-container class="drawer-container">
+    <mat-drawer mode="side" opened class="left-drawer">
+      <div class="users-pane">
+        <button mat-raised-button aria-label="Exit" (click)="exitChat()">
+          Back
+        </button>
+        <h2>Discussion Members</h2>
+        <mat-card class="users-card" *ngFor="let user of users">
+          <mat-icon>person</mat-icon> <span class="username">{{user.nickname}}</span>
+        </mat-card>
+      </div>
+    </mat-drawer>
+    <mat-drawer-content class="chat-pane">
+        <h3>Hello, {{nickname}}</h3>
+        <div class="bid-area">
+        <div *ngIf="nickname == 'admin'; else nonAdmin">
+          <button mat-raised-button color="primary" (click)="startDiscussion()">Start discussion</button><br><br>
+          <button mat-raised-button color="primary" (click)="resetAuction(true)">RESET EVERYTHING</button><br><br>
+          <button mat-raised-button color="warn" (click)="deleteBidHistory()">DELETE ALL BID HISTORY</button><br><br>
+        </div>
+        <h2>Current top bid: {{this.top_bid}}</h2>
+        <h3 *ngIf="userId == this.current_speaker; else elseBlock">
+          You are currently speaking
+        </h3>
+        <countdown #countdown [hidden]="userId != this.current_speaker" [config]="{ leftTime: this.cd_time, format: 'm:ss' }" (event)="finishSpeaking($event)"></countdown>
+        <ng-template #elseBlock><h3>Currently speaking: {{current_speaker_nickname}}</h3></ng-template>
+        <ng-template #nonAdmin>
+          <h3>Endowment Remaining: {{this.endowment}}</h3>
+          <mat-slider [max]="endowment" [min]=0 [step]=1 (change)="makeBid($event)" [(ngModel)]="bid" [thumbLabel]=true></mat-slider>
+          <h3>My Bid: {{this.bid}}</h3>
+          <!-- <h4 *ngIf="bid == this.top_bid">You are the top bidder!</h4> -->
+        </ng-template>
+      </div>
+    </mat-drawer-content>
+  </mat-drawer-container>
+</div>
