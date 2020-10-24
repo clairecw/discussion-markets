@@ -41,9 +41,10 @@ export class AddroomComponent implements OnInit {
     const room = form;
     this.ref.orderByChild('roomname').equalTo(room.roomname).once('value', (snapshot: any) => {
       if (snapshot.exists()) {
-        this.snackBar.open('Room name already exist!');
+        this.snackBar.open('Room name already exists!');
       } else {
         const newRoom = firebase.database().ref('rooms/').push();
+        room['max_speaking_mins'] = 2;
         newRoom.set(room);
         this.router.navigate(['/roomlist']);
       }
