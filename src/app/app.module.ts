@@ -16,6 +16,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
 // import { MatToolbarModule } from '@angular/material/toolbar';
+import { OrdinalPipe } from './chatroom/ordinal.pipe';
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
 import { MatCardModule } from '@angular/material/card';
@@ -42,7 +43,9 @@ const firebaseConfig = {
     LoginComponent,
     RoomlistComponent,
     AddroomComponent,
-    ChatroomComponent
+    ChatroomComponent,
+    OrdinalPipe
+
   ],
   imports: [
     BrowserModule,
@@ -61,7 +64,8 @@ const firebaseConfig = {
     MatProgressSpinnerModule,
     MatSortModule,
     MatSnackBarModule,
-    MatSidenavModule
+    MatSidenavModule,
+    
   ],
   providers: [DatePipe],
   bootstrap: [AppComponent]

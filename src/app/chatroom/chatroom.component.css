@@ -2,10 +2,18 @@
   width: 100%;
 }
 
-mat-header-cell {
-  display: flex;
-  justify-content: flex-end;
+.width80 {
+  width: 80%;
 }
+
+.center-in-parent {
+  margin: 0 auto;
+
+}
+
+th.mat-header-cell {
+  text-align: center;
+ }
 
 .example-container {
   display: flex;

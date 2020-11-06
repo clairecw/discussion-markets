@@ -19,12 +19,12 @@
       </div>
       <div class="users-pane">
         <h2>Discussion Members</h2>
-        <form [formGroup]="topupForm" (ngSubmit)="onFormSubmit(topupForm.value)">
+        <form [formGroup]="topupForm" (ngSubmit)="topUp(topupForm.value)" *ngIf="nickname == 'admin'">
           <mat-form-field>
             <mat-label>Amount</mat-label>
             <input matInput formControlName="amount">
           </mat-form-field>
-          <button *ngIf="nickname == 'admin'" mat-raised-button color="accent">Top up all participants</button>
+          <button mat-raised-button color="accent" (click)="topUp">Top up all participants</button>
         </form>
         <mat-card class="users-card" *ngFor="let user of users">
           <mat-icon>person</mat-icon> <span class="username">{{user.nickname}}</span>
@@ -37,7 +37,6 @@
         <div *ngIf="nickname == 'admin'; else nonAdmin">
           <button mat-raised-button color="primary" [disabled]="status != 'closed'" (click)="startDiscussion()">Start discussion</button><br><br>
           <button mat-raised-button color="primary" [disabled]="status == 'closed'" (click)="endDiscussion()">End discussion</button><br><br>
-          <countdown #countdown [config]="{ leftTime: this.cd_time, format: 'm:ss' }"></countdown><br><br>
           <h3>Current Bids</h3>
           
           <table mat-table [dataSource]="all_bids" class="mat-elevation-z8 full-width">
@@ -58,20 +57,34 @@
           <h3>You are currently speaking</h3>
           <button mat-raised-button color="warn" (click)="finishSpeaking(null)">End my turn</button>
         </div>
-        <countdown #countdown [hidden]="userId != this.current_speaker" [config]="{ leftTime: this.cd_time, format: 'm:ss' }" (event)="finishSpeaking($event)"></countdown>
+        <countdown #countdown [config]="{ leftTime: this.cd_time, format: 'm:ss' }" (event)="finishSpeaking($event)"></countdown>
         <ng-template #elseBlock>
           <h3>Currently speaking: {{userId2Nickname.get(room.current_speaker)}}</h3>
           <!-- <h3>Currently speaking: {{current_speaker_nickname}}</h3> -->
         </ng-template>
         <ng-template #nonAdmin>
-          <h2>Current top bid: {{this.top_bid}}</h2>
+          <h2 *ngIf="this.all_bids != null && this.all_bids.length; else emptyBids" > Current top bid: {{this.all_bids[0].amount}}</h2>
+          <ng-template #emptyBids>Current top bid: 0</ng-template>
 
           <h3>Endowment Remaining: {{this.endowment}}</h3>
-          <mat-slider [disabled]="status == 'closed'" [max]="endowment" [min]=0 [step]=1 (change)="makeBid($event)" [(ngModel)]="bid" [thumbLabel]=true></mat-slider>
-          <h3>My Bid: {{this.bid}}</h3>
-          <h4 *ngIf="bid_position > -1">Your bid place is {{bid_position}}</h4>
+          <mat-slider [disabled]="status == 'closed'" [max]="endowment" [min]=0 [step]=1 [(ngModel)]="bid" [thumbLabel]=true></mat-slider>
+          <button mat-raised-button [disabled]="status == 'closed'" (click)="makeBid()">Bid!</button>
+          <h3 *ngIf="this.user != null">My Bid: {{this.user.current_discussion.bid}}</h3>
+          <h4 *ngIf="bid_position > -1">Your bid position is {{bid_position | ordinal}}</h4>
         </ng-template>
       </div>
+      <mat-card class="width80 center-in-parent" *ngIf="show_mat_card">
+        <h3>Your stats from last discussion:</h3>
+        <h5>Total time spoken: {{userStats['timeSpoken']}} seconds</h5>
+        <h5>Average time spoken: {{userStats['avgTS']}} seconds</h5>
+        <h5>Total endowment spent: {{userStats['spent']}}</h5>
+        <h5># of bids: {{userStats['numBids']}}</h5>
+      </mat-card>
+      <mat-card class="width80 center-in-parent" *ngIf="show_global_stats">
+        <h3>Global room stats from last discussion:</h3>
+        <h5>Average total time spoken: {{globalStats['avgTS']}} seconds</h5>
+        <h5>Average bid amount: {{globalStats['avgBid']}}</h5>
+      </mat-card>
     </mat-drawer-content>
   </mat-drawer-container>
 </div>

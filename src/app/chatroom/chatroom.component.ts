@@ -13,6 +13,16 @@ export class MyErrorStateMatcher implements ErrorStateMatcher {
   }
 }
 
+interface Bid {
+  amount: number;
+}
+
+interface Speak {
+  start: number;
+  end: number;
+  spent: number;
+}
+
 export const snapshotToArray = (snapshot: any) => {
   const returnArr = [];
 
@@ -43,19 +53,20 @@ export class ChatroomComponent implements OnInit {
 
   cd_time = -1;
   endowment = 0; current_speaker_nickname = 'no one';
-  bid = 0; top_bid = 0; bid_position = -1;
+  bid = 0; bid_position = -1;
   top_bidder = "no one"; current_speaker = "no one"
   roomRef = null; user = null;
+  show_mat_card = false; show_global_stats = false; no_stats = false;
+  userStats = {timeSpoken: 0, spent: 0, numBids: 0};
+  globalStats = {avgTS: 0, avgBids: 0, numBids: 0};
 
   // default value
   room = {max_speaking_mins: 2, status: 'closed', end_time: -1,
-          top_bid: 0, current_speaker: "no one", key: '000'};
+          current_speaker: "no one", key: '000', current_bids: []};
   
   displayedColumns: string[] = ['name', 'amount'];
 
   all_bids = [];
-
-  SPEAKING_MINS = 1
 
   DEBUG = false;
 
@@ -89,59 +100,57 @@ export class ChatroomComponent implements OnInit {
       'amount' : [null]
     });
 
-    // if (this.nickname == 'admin') {
-    //   const cbRef = firebase.database().ref('rooms/' + this.room.key + '/current_bids');
-    //   cbRef.orderByValue().on('value', (resp: any) => {
-    //     this.all_bids = snapshotToArray(resp);
-    //   });
-    // }
-
     firebase.database().ref('users/').orderByChild('nickname').equalTo(this.nickname).on('value', (resp: any) => {
-      let users = [];
-      users = snapshotToArray(resp);
-      this.user = users.find(x => x.nickname === this.nickname);
-      if (this.user !== undefined) {
+      this.user = snapshotToArray(resp)[0];
+      if (this.user !== undefined && this.user != null) {
         this.endowment = this.user.endowment;
         this.userId = this.user.key;
+
+        // if ("current_discussion" in this.user) {
+        //   this.bid = this.user.current_discussion.bid;
+        // }
       }
     });
     
     firebase.database().ref('rooms/').orderByChild('roomname').equalTo(this.roomname).on('value', (resp: any) => {
       this.room = snapshotToArray(resp)[0];
       this.status = this.room.status;
+
+      if (this.status == 'closed') { 
+        if (this.nickname == 'admin') {
+          this.displayGlobalStats();
+        }
+        else this.displayUserStats();
+      }
+      else {
+        this.show_mat_card = false; this.show_global_stats = false;
+      }
+
       if (this.room.end_time == null) {
         this.cd_time = null;
       }
       else {
         this.cd_time = (this.room.end_time - (new Date).getTime()) / 1000;
-
       }
-      this.top_bid = this.room.top_bid;
-      // if (this.top_bid == 0) {
-      //   this.bid = 0;
-      // }
       this.current_speaker = this.room.current_speaker;
-      // this.top_bidder = this.room.top_bidder;
       if (this.roomRef == null) this.roomRef = firebase.database().ref('rooms/' + this.room.key);
       this.current_speaker_nickname = this.userId2Nickname.get(this.current_speaker);
-      const roomRef = firebase.database().ref('rooms/' + this.room.key + '/current_bids');
-      roomRef.orderByValue().on('value', (resp: any) => {
-        let current_bids = snapshotToArray(resp);
-        this.bid_position = current_bids.indexOf(this.userId);
 
+      firebase.database().ref('rooms/' + this.room.key + '/current_bids').orderByChild('amount').on('value', (resp: any) => {
+        this.all_bids = snapshotToArray(resp).reverse();
+        if (this.user.nickname != 'admin' && this.all_bids.length > 0) {
+          let i = 0;
+          for (; i < this.all_bids.length; i++) {
+            if (this.all_bids[i].key == this.user.key) break;
+          }
+          this.bid_position = i + 1;
+          // console.log(this.bid_position);
+        }
       });
 
-      if (this.nickname == 'admin') {
-        firebase.database().ref('rooms/' + this.room.key + '/current_bids').orderByValue().on('value', (resp: any) => {
-          this.all_bids = snapshotToArray(resp);
-        });
-      }
-
-      if (this.DEBUG) {
-        console.log("current_speaker: " + this.current_speaker);
-        console.log("current_speaker_nickname " + this.current_speaker_nickname);
-        console.log("room updated:" + this.status + ", " + this.top_bid + ", " + this.current_speaker + ", " + this.cd_time);
-      }
+      this.print("current_speaker: " + this.current_speaker);
+      this.print("current_speaker_nickname " + this.current_speaker_nickname);
+      this.print("room updated:" + this.status + ", " + this.current_speaker + ", " + this.cd_time);
 
       this.ref.detectChanges();
 
@@ -152,7 +161,7 @@ export class ChatroomComponent implements OnInit {
   }
 
   resetAuction(first_round) {
-    let changes = {top_bid: 0, current_speaker: "no one", end_time: null, };
+    let changes = {current_speaker: "no one", end_time: null, };
     if (first_round == null) {
       this.roomRef.update(changes);
       return;
@@ -167,6 +176,80 @@ export class ChatroomComponent implements OnInit {
 
   }
 
+  // Display this user's stats at the end of the round.
+  displayUserStats() {
+    firebase.database().ref('users/' + this.user.key).once('value', (resp: any) => {
+      const userInfo = resp.val();
+      let bh = {};
+      if ('bid_history' in userInfo.current_discussion) {
+        bh = userInfo.current_discussion.bid_history;
+      }
+      let bidSum = 0; let bidLen = 0;
+
+      let x: Bid;
+      for (let [key, x] of Object.entries(bh)) {
+        let y = x as Bid;
+        bidSum += y.amount;
+        bidLen += 1;
+      }
+      this.userStats['numBids'] = bidLen;
+      this.userStats['avgBid'] = bidSum / bidLen;
+
+      let ts = 0; let speakLen = 0;
+      let spent = 0;
+      let sh = {};
+      if ('speaking_history' in userInfo.current_discussion) {
+        sh = userInfo.current_discussion.speaking_history;
+      }
+      for (let [key, x] of Object.entries(sh)) {
+        let y = x as Speak;
+        ts += (y.end - y.start) / 1000;
+        spent += y.spent;
+        speakLen += 1;
+      }
+      this.userStats['timeSpoken'] = ts;
+      this.userStats['avgTS'] = ts / speakLen;  
+      this.userStats['spent'] = spent;
+      
+      this.show_mat_card = true;
+    });
+    this.displayGlobalStats();
+  }
+
+  displayGlobalStats() {
+    firebase.database().ref('users/').once('value', (resp: any) => {
+      let users = snapshotToArray(resp);
+      let bidSum = 0; let userLen = 0;
+      let ts = 0;
+      for (let user of users) {
+        if (user.nickname != 'admin' && 'current_discussion' in user) {
+          userLen += 1;
+          let bh = {};
+          if ('bid_history' in user.current_discussion) {
+            bh = user.current_discussion.bid_history;
+          }
+    
+          for (let [key, x] of Object.entries(bh)) {
+            let y = x as Bid;
+            bidSum += y.amount;
+          }
+    
+          let sh = {};
+          if ('speaking_history' in user.current_discussion) {
+            sh = user.current_discussion.speaking_history;
+          }
+          for (let [key, x] of Object.entries(sh)) {
+            let y = x as Speak;
+            ts += (y.end - y.start) / 1000;
+          }
+        }
+      }
+      this.globalStats['avgBid'] = bidSum / userLen;
+      this.globalStats['avgTS'] = ts / userLen;  
+      this.show_global_stats = true;
+    });
+  }
+
   deleteBidHistory() {
     this.roomRef.update({bid_history: null});
     this.roomRef.update({current_bids: null});
@@ -175,15 +258,13 @@ export class ChatroomComponent implements OnInit {
   onFormSubmit(form: any) {
     this.roomRef.update(form);
   }
-  topUp(form: any) {
-    firebase.database().ref('users/').orderByKey().on('value', (resp: any) => {
-      const userRef = firebase.database().ref('users/' + this.userId);
 
+  topUp(form: any) {
+    firebase.database().ref('users/').orderByKey().once('value', (resp: any) => {
       for (let user of snapshotToArray(resp)) {
         if (user.nickname != 'admin') {
-          console.log("old endow: " + user.endowment);
           let userRef = firebase.database().ref('users/' + user.key);
-          userRef.update({endowment: user.endowment + form['amount']});
+          userRef.update({endowment: parseInt(user.endowment) + parseInt(form['amount'])});
 
         }
         
@@ -209,6 +290,40 @@ export class ChatroomComponent implements OnInit {
     if (this.room !== null) {
       const roomRef = firebase.database().ref('rooms/' + this.room.key);
       roomRef.update({status: 'first_round'});
+
+      firebase.database().ref('users/').once('value', (resp: any) => {
+        let users = snapshotToArray(resp);
+        let bidSum = 0; let userLen = 0;
+        let ts = 0;
+        for (let user of users) {
+          if (user.nickname != 'admin' && 'current_discussion' in user) {
+            let userCD = user.current_discussion;
+            const archive = firebase.database().ref('users/' + user.key + '/discussion_history').push();
+            archive.set(userCD);
+
+            firebase.database().ref('users/' + user.key + '/current_discussion').set({bid: 0});
+
+          }
+        }
+      });
+
+      // for (let user of this.users) {
+      //   if (user.nickname != 'admin') {
+      //     firebase.database().ref('users/' + user.key + '/current_discussion').once('value', (resp: any) => {
+      //       console.log(resp.val());
+      //       let arr = snapshotToArray(resp);
+      //       if (arr.length > 0) {
+      //         let userCD = arr[0];
+
+      //         const archive = firebase.database().ref('users/' + user.key + '/discussion_history').push();
+      //         archive.set(userCD);
+      //       }
+
+      //       firebase.database().ref('users/' + this.userId + '/current_discussion').remove();
+            
+      //     });
+      //   }
+      // }
     }
   }
 
@@ -219,84 +334,96 @@ export class ChatroomComponent implements OnInit {
     }
   }
 
-  // This user starts speaking.
+  // User userId starts speaking.
   kickOffSpeaking(userId) {
+    
+    firebase.database().ref('users/' + userId).once('value', (resp: any) => {
+      if (this.room.current_speaker != userId) {
+        let now = (new Date).getTime();
+        // Clear this user's current bid.
+        let userDisRef = firebase.database().ref('users/' + userId + '/current_discussion');
+        let udrUpdates = {bid: 0, started_speaking: now};
+        if (this.room.status == 'first_round') {
+          udrUpdates['prev_bid'] = 0;
+        }
+        else {
+          udrUpdates['prev_bid'] = this.user.current_discussion.bid;
+        }
 
-//     roomRef.update({status: 'general', 
-//     current_speaker: top_bidder,
-//     end_time: (new Date).getTime() + this.SPEAKING_MINS * 60000,
-//     top_bid: 0, });
-// this.current_speaker = top_bidder;
+        // Clear this user's current bid in the room's current_bids.
+        this.roomRef.update({status: 'general', 
+          current_speaker: userId,
+          end_time: now + this.room.max_speaking_mins * 60000,
+        });
+        const bidRef = firebase.database().ref('rooms/' + this.room.key + '/current_bids/' + userId);
+        this.print("user's bidRef: " + 'rooms/' + this.room.key + '/current_bids/' + userId);
+        bidRef.remove();
+        userDisRef.update(udrUpdates);
 
-    this.roomRef.update({status: 'general', 
-      current_speaker: userId,
-      end_time: (new Date).getTime() + this.SPEAKING_MINS * 60000,
-      top_bid: 0
+        this.ref.detectChanges();
+      }
     });
-    // Clear this user's current bid.
-    let userDisRef = firebase.database().ref('users/' + this.userId + '/current_discussion');
-    userDisRef.update({bid: 0, prev_bid: this.bid});
-    const bidRef = firebase.database().ref('rooms/' + this.room.key + '/current_bids/' + this.userId);
-    bidRef.set(null);
-
-    // subtract endowment here?
+    
   }
 
-  makeBid(event) {
-    const bidHistoryRef = firebase.database().ref('rooms/' + this.room.key + '/bid_history');
-    const newBidEvent = bidHistoryRef.push();
-    newBidEvent.set({user: this.user.key, amount: this.bid, ts: (new Date).getTime()});
+  print(s) {
+    if (this.DEBUG) console.log(s);
+  }
 
-    const currentDiscussionRef = firebase.database().ref('users/' + this.userId + '/current_discussion');
-    // const newBidEventForUser = firebase.database().ref('users/' + this.userId + '/current_discussion/bid_history').push();
-    currentDiscussionRef.update({bid: this.bid});
+  makeBid() {
+    if (this.bid > 0) {
+      const bidHistoryRef = firebase.database().ref('rooms/' + this.room.key + '/bid_history');
+      const newBidEvent = bidHistoryRef.push();
+      newBidEvent.set({user: this.user.key, amount: this.bid, ts: (new Date).getTime()});
 
-    const bidRef = firebase.database().ref('rooms/' + this.room.key + '/current_bids');
-    let bid = {amount: this.bid};
-    bidRef.child(this.userId).set(bid);
-    if (this.status == 'first_round') {
-      this.kickOffSpeaking(this.userId);
-    }
-    else if (this.room.status == 'general') {
-        if (this.top_bid < this.bid) {
-          this.roomRef.update({top_bid: this.bid});
-          // currentDiscussionRef.update({num_high_bids: newHighBids});
+      const currentDiscussionRef = firebase.database().ref('users/' + this.userId + '/current_discussion');
+      firebase.database().ref('users/' + this.userId + '/current_discussion/bid_history').child(newBidEvent.key).set({amount: this.bid});
+      currentDiscussionRef.update({bid: this.bid});
+
+      if (this.status == 'first_round') {
+        this.kickOffSpeaking(this.userId);
+        return;
       }
-    }
 
+      const bidRef = firebase.database().ref('rooms/' + this.room.key + '/current_bids');
+      let bid = {amount: this.bid};
+      bidRef.child(this.userId).set(bid);
+    }
 
   }
 
   // This user has finished speaking.
   finishSpeaking(e) {
     if (e == null || (e.action == 'done' && this.current_speaker == this.userId)) {
-      let timeLeft = Math.max((this.room.end_time - (new Date).getTime()) / 1000, 0);
-      console.log("finished speaking: " + timeLeft + "s left");
+      this.roomRef.update({current_speaker: "no one"});
+      let now = (new Date).getTime();
+      let timeLeft = Math.max((this.room.end_time - now) / 1000, 0);
 
-      firebase.database().ref('users/').orderByKey().equalTo(this.userId).on('value', (resp: any) => {
-        const userRef = firebase.database().ref('users/' + this.userId);
-        const oldEndowment = snapshotToArray(resp)[0].endowment;
-        console.log("old endow: " + oldEndowment);
-        console.log("topbid " + this.top_bid);
-        console.log("new endow: " + this.top_bid * (this.SPEAKING_MINS * 60 - timeLeft));
-        userRef.update({endowment: oldEndowment - this.user.current_discussion.prev_bid * (this.SPEAKING_MINS - timeLeft)});
+      let asdf = this;
+      firebase.database().ref('users/').orderByKey().equalTo(this.userId).once('value').then(function(resp) {
+        const userRef = firebase.database().ref('users/' + asdf.userId);
+        let user = snapshotToArray(resp)[0];
+        const oldEndowment = user.endowment;
+        let spent = Math.ceil((asdf.room.max_speaking_mins * 60 - timeLeft) / 60 * asdf.user.current_discussion.prev_bid);
+        userRef.update({endowment: oldEndowment - spent});
+
+        const newSpeak = firebase.database().ref('users/' + asdf.userId + '/current_discussion/speaking_history').push();
+        newSpeak.set({start: user.current_discussion.started_speaking, end: now, spent: spent});
       });
 
-      firebase.database().ref('rooms/').orderByChild('roomname').equalTo(this.roomname).on('value', (resp: any) => {
+      firebase.database().ref('rooms/').orderByChild('roomname').equalTo(this.roomname).once('value', (resp: any) => {
         this.room = snapshotToArray(resp)[0];
         const roomRef = firebase.database().ref('rooms/' + this.room.key);
 
-        if (this.top_bid == 0) {
+        if (this.all_bids.length == 0) {
           this.resetAuction(true);
           return;
         }
         const top_bidder = this.all_bids[0];
-        this.kickOffSpeaking(top_bidder); 
+        console.log(top_bidder);
+        this.kickOffSpeaking(top_bidder.key); 
 
       });
-
-      // reset the auction
-      this.top_bid = 0;
     }
   }
 
