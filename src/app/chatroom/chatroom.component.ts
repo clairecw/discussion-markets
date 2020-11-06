@@ -105,10 +105,6 @@ export class ChatroomComponent implements OnInit {
       if (this.user !== undefined && this.user != null) {
         this.endowment = this.user.endowment;
         this.userId = this.user.key;
-
-        // if ("current_discussion" in this.user) {
-        //   this.bid = this.user.current_discussion.bid;
-        // }
       }
     });
     
@@ -117,7 +113,7 @@ export class ChatroomComponent implements OnInit {
       this.status = this.room.status;
 
       if (this.status == 'closed') { 
-        if (this.nickname == 'admin') {
+        if (this.user.type == 'admin') {
           this.displayGlobalStats();
         }
         else this.displayUserStats();
@@ -138,13 +134,12 @@ export class ChatroomComponent implements OnInit {
 
       firebase.database().ref('rooms/' + this.room.key + '/current_bids').orderByChild('amount').on('value', (resp: any) => {
         this.all_bids = snapshotToArray(resp).reverse();
-        if (this.user.nickname != 'admin' && this.all_bids.length > 0) {
+        if (this.user.nickname != 'admin' && this.user.bid > 0) {
           let i = 0;
           for (; i < this.all_bids.length; i++) {
             if (this.all_bids[i].key == this.user.key) break;
           }
           this.bid_position = i + 1;
-          // console.log(this.bid_position);
         }
       });
 
@@ -306,24 +301,12 @@ export class ChatroomComponent implements OnInit {
           }
         }
       });
+    }
+  }
 
-      // for (let user of this.users) {
-      //   if (user.nickname != 'admin') {
-      //     firebase.database().ref('users/' + user.key + '/current_discussion').once('value', (resp: any) => {
-      //       console.log(resp.val());
-      //       let arr = snapshotToArray(resp);
-      //       if (arr.length > 0) {
-      //         let userCD = arr[0];
-
-      //         const archive = firebase.database().ref('users/' + user.key + '/discussion_history').push();
-      //         archive.set(userCD);
-      //       }
-
-      //       firebase.database().ref('users/' + this.userId + '/current_discussion').remove();
-            
-      //     });
-      //   }
-      // }
+  createCDs() {
+    for (let user of this.users) {
+      firebase.database().ref('users/' + user.key + '/current_discussion').set({bid: 0});
     }
   }
 

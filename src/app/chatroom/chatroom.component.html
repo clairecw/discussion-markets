@@ -4,7 +4,7 @@
       <button mat-raised-button aria-label="Exit" (click)="exitChat()">
         Back
       </button>
-      <div *ngIf="nickname == 'admin'">
+      <div *ngIf="user.type == 'admin'">
         <h2>Admin Settings</h2>
         <form class="room-settings-form" [formGroup]="roomForm" (ngSubmit)="onFormSubmit(roomForm.value)">
           <mat-form-field>
@@ -15,11 +15,12 @@
         </form>
         <button mat-raised-button color="primary" (click)="resetAuction(true)">RESET EVERYTHING</button><br><br>
         <button mat-raised-button color="warn" (click)="deleteBidHistory()">DELETE ALL BID HISTORY</button><br><br>
+        <button mat-raised-button color="primary" (click)="createCDs()">Reset CDs</button><br><br>
 
       </div>
       <div class="users-pane">
         <h2>Discussion Members</h2>
-        <form [formGroup]="topupForm" (ngSubmit)="topUp(topupForm.value)" *ngIf="nickname == 'admin'">
+        <form [formGroup]="topupForm" (ngSubmit)="topUp(topupForm.value)" *ngIf="user.type == 'admin'">
           <mat-form-field>
             <mat-label>Amount</mat-label>
             <input matInput formControlName="amount">
@@ -34,7 +35,7 @@
     <mat-drawer-content class="chat-pane">
         <div class="bid-area">
         <h3>Hello, {{nickname}}</h3>
-        <div *ngIf="nickname == 'admin'; else nonAdmin">
+        <div *ngIf="user.type == 'admin'; else nonAdmin">
           <button mat-raised-button color="primary" [disabled]="status != 'closed'" (click)="startDiscussion()">Start discussion</button><br><br>
           <button mat-raised-button color="primary" [disabled]="status == 'closed'" (click)="endDiscussion()">End discussion</button><br><br>
           <h3>Current Bids</h3>

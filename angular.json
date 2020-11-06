@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "angular-chat": {
+    "discussion-markets": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -13,7 +13,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "outputPath": "dist/angular-chat",
+            "outputPath": "dist/discussion-markets",
             "index": "src/index.html",
             "main": "src/main.ts",
             "polyfills": "src/polyfills.ts",
@@ -62,18 +62,18 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "browserTarget": "angular-chat:build"
+            "browserTarget": "discussion-markets:build"
           },
           "configurations": {
             "production": {
-              "browserTarget": "angular-chat:build:production"
+              "browserTarget": "discussion-markets:build:production"
             }
           }
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "angular-chat:build"
+            "browserTarget": "discussion-markets:build"
           }
         },
         "test": {
@@ -111,18 +111,22 @@
           "builder": "@angular-devkit/build-angular:protractor",
           "options": {
             "protractorConfig": "e2e/protractor.conf.js",
-            "devServerTarget": "angular-chat:serve"
+            "devServerTarget": "discussion-markets:serve"
           },
           "configurations": {
             "production": {
-              "devServerTarget": "angular-chat:serve:production"
+              "devServerTarget": "discussion-markets:serve:production"
             }
           }
+        },
+        "deploy": {
+          "builder": "angular-cli-ghpages:deploy",
+          "options": {}
         }
       }
     }
   },
-  "defaultProject": "angular-chat",
+  "defaultProject": "discussion-markets",
   "cli": {
     "analytics": "4ee551fe-8f52-4064-8a33-d182346be7fd"
   }
