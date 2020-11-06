@@ -45,7 +45,6 @@ export class AddroomComponent implements OnInit {
       } else {
         const newRoom = firebase.database().ref('rooms/').push();
         room['max_speaking_mins'] = 2;
-        room['status'] = 'closed';
         newRoom.set(room);
         this.router.navigate(['/roomlist']);
       }
