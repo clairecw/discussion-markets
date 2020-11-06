@@ -43,6 +43,7 @@ export class LoginComponent implements OnInit {
       } else {
         const newUser = firebase.database().ref('users/').push();
         login.endowment = 30;
+        login.current_discussion = {bid: 0};
         newUser.set(login);
         localStorage.setItem('nickname', login.nickname);
         this.router.navigate(['/roomlist']);
