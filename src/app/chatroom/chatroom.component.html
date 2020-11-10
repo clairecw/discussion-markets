@@ -1,10 +1,7 @@
 <div class="example-container mat-elevation-z8">
   <mat-drawer-container class="drawer-container">
-    <mat-drawer mode="side" opened class="left-drawer">
-      <button mat-raised-button aria-label="Exit" (click)="exitChat()">
-        Back
-      </button>
-      <div *ngIf="user.type == 'admin'">
+    <mat-drawer #sidenav mode="side" opened class="left-drawer">
+      <div *ngIf="this.user != null && user.type == 'admin'">
         <h2>Admin Settings</h2>
         <form class="room-settings-form" [formGroup]="roomForm" (ngSubmit)="onFormSubmit(roomForm.value)">
           <mat-form-field>
@@ -16,7 +13,6 @@
         <button mat-raised-button color="primary" (click)="resetAuction(true)">RESET EVERYTHING</button><br><br>
         <button mat-raised-button color="warn" (click)="deleteBidHistory()">DELETE ALL BID HISTORY</button><br><br>
         <button mat-raised-button color="primary" (click)="createCDs()">Reset CDs</button><br><br>
-
       </div>
       <div class="users-pane">
         <h2>Discussion Members</h2>
@@ -31,9 +27,18 @@
           <mat-icon>person</mat-icon> <span class="username">{{user.nickname}}</span>
         </mat-card>
       </div>
+
+      <b>Bid submit type:</b>
+      <mat-slide-toggle ngDefaultControl [(ngModel)]="releaseSubmit">{{ releaseSubmit ? "on slider release" : "on button click" }}</mat-slide-toggle><br><br>
+      <button mat-raised-button aria-label="Exit" (click)="exitChat()">
+        Exit Room
+      </button>
     </mat-drawer>
+
     <mat-drawer-content class="chat-pane">
-        <div class="bid-area">
+      <button type="button" mat-icon-button (click)="sidenav.toggle()"><mat-icon>menu</mat-icon></button>
+      <button class="topright" mat-icon-button><mat-icon>help_outline</mat-icon></button>
+      <div class="bid-area">
         <h3>Hello, {{nickname}}</h3>
         <div *ngIf="user.type == 'admin'; else nonAdmin">
           <button mat-raised-button color="primary" [disabled]="status != 'closed'" (click)="startDiscussion()">Start discussion</button><br><br>
@@ -43,7 +48,7 @@
           <table mat-table [dataSource]="all_bids" class="mat-elevation-z8 full-width">
             <ng-container matColumnDef="name">
               <th mat-header-cell *matHeaderCellDef> Participant </th>
-              <td mat-cell *matCellDef="let element"> {{this.userId2Nickname.get(element.key)}} </td>
+              <td mat-cell *matCellDef="let element"> {{this.userId2Nickname.get(element.user)}} </td>
             </ng-container>
             <ng-container matColumnDef="amount">
               <th mat-header-cell *matHeaderCellDef> Bid amount </th>
@@ -58,20 +63,28 @@
           <h3>You are currently speaking</h3>
           <button mat-raised-button color="warn" (click)="finishSpeaking(null)">End my turn</button>
         </div>
-        <countdown #countdown [config]="{ leftTime: this.cd_time, format: 'm:ss' }" (event)="finishSpeaking($event)"></countdown>
+        <div *ngIf="user.type == 'admin'">
+          <button mat-raised-button color="primary" (click)="pauseSpeaker()" [disabled]="room.current_speaker == 'no one'">Pause Speaker</button>
+        </div>
+        <!-- <countdown #countdown [config]="{ leftTime: this.cd_time, format: 'm:ss' }" (event)="finishSpeaking($event)"></countdown> -->
+        <countdown #countdown [config]="{ stopTime: this.room.end_time, format: 'm:ss' }" (event)="finishSpeaking($event)"></countdown>
         <ng-template #elseBlock>
           <h3>Currently speaking: {{userId2Nickname.get(room.current_speaker)}}</h3>
-          <!-- <h3>Currently speaking: {{current_speaker_nickname}}</h3> -->
         </ng-template>
         <ng-template #nonAdmin>
           <h2 *ngIf="this.all_bids != null && this.all_bids.length; else emptyBids" > Current top bid: {{this.all_bids[0].amount}}</h2>
           <ng-template #emptyBids>Current top bid: 0</ng-template>
 
           <h3>Endowment Remaining: {{this.endowment}}</h3>
-          <mat-slider [disabled]="status == 'closed'" [max]="endowment" [min]=0 [step]=1 [(ngModel)]="bid" [thumbLabel]=true></mat-slider>
-          <button mat-raised-button [disabled]="status == 'closed'" (click)="makeBid()">Bid!</button>
+          <div *ngIf="!releaseSubmit">
+            <mat-slider #bidSlider [disabled]="status == 'closed'" [max]="endowment" [min]=0 [step]=1 [thumbLabel]=true></mat-slider>
+            <button mat-raised-button [disabled]="status == 'closed'" (click)="makeBid(bidSlider.value)">Bid!</button>
+          </div>
+          <div *ngIf="releaseSubmit">
+            <mat-slider #bidSlider [disabled]="status == 'closed'" [max]="endowment" [min]=0 [step]=1 (slideend)="makeBid(bidSlider.value)" (pointerup)="makeBid(bidSlider.value)" [thumbLabel]=true></mat-slider>
+          </div>
           <h3 *ngIf="this.user != null">My Bid: {{this.user.current_discussion.bid}}</h3>
-          <h4 *ngIf="bid_position > -1">Your bid position is {{bid_position | ordinal}}</h4>
+          <h4 *ngIf="bid_position > -1">Your are {{bid_position | ordinal}} in line to speak.</h4>
         </ng-template>
       </div>
       <mat-card class="width80 center-in-parent" *ngIf="show_mat_card">

@@ -67,6 +67,7 @@ export class ChatroomComponent implements OnInit {
   displayedColumns: string[] = ['name', 'amount'];
 
   all_bids = [];
+  releaseSubmit = true;   // false if button submit, true if release submit
 
   DEBUG = false;
 
@@ -132,17 +133,6 @@ export class ChatroomComponent implements OnInit {
       if (this.roomRef == null) this.roomRef = firebase.database().ref('rooms/' + this.room.key);
       this.current_speaker_nickname = this.userId2Nickname.get(this.current_speaker);
 
-      firebase.database().ref('rooms/' + this.room.key + '/current_bids').orderByChild('amount').on('value', (resp: any) => {
-        this.all_bids = snapshotToArray(resp).reverse();
-        if (this.user.nickname != 'admin' && this.user.bid > 0) {
-          let i = 0;
-          for (; i < this.all_bids.length; i++) {
-            if (this.all_bids[i].key == this.user.key) break;
-          }
-          this.bid_position = i + 1;
-        }
-      });
-
       this.print("current_speaker: " + this.current_speaker);
       this.print("current_speaker_nickname " + this.current_speaker_nickname);
       this.print("room updated:" + this.status + ", " + this.current_speaker + ", " + this.cd_time);
@@ -152,7 +142,35 @@ export class ChatroomComponent implements OnInit {
       if (this.cd_time < 0) {
         this.resetAuction(null);
       }
+
+      this.all_bids = [];
+      for (let [key, amount] of Object.entries(this.room.current_bids)) {
+        this.all_bids.push({user: key, amount: amount.amount});
+      }
+      this.all_bids.sort((a, b) => a.amount - b.amount);
+
+      let i = 0, found = false;
+      for (let x of this.all_bids) {
+        i++;
+        if (x.user == this.user.key) {
+          this.bid_position = i;
+          break;
+        }
+      }
     });
+  }
+
+  pauseSpeaker() {
+    this.countdown.pause();
+    // this.roomRef.update({cd_time: this.countdown.left});
+    // this.cd_config = { leftTime: this.room.cd_time, format: 'm:ss' };
+
+  }
+
+  resumeSpeaker() {
+    this.countdown.resume();
+    // this.cd_config = { stopTime: this.room.end_time, format: 'm:ss' };
+    // this.cd_config = {}
   }
 
   resetAuction(first_round) {
@@ -353,15 +371,15 @@ export class ChatroomComponent implements OnInit {
     if (this.DEBUG) console.log(s);
   }
 
-  makeBid() {
-    if (this.bid > 0) {
+  makeBid(value) {
+    if (this.current_speaker != this.userId && value > 0 && value != this.bid) {
       const bidHistoryRef = firebase.database().ref('rooms/' + this.room.key + '/bid_history');
       const newBidEvent = bidHistoryRef.push();
-      newBidEvent.set({user: this.user.key, amount: this.bid, ts: (new Date).getTime()});
+      newBidEvent.set({user: this.user.key, amount: value, ts: (new Date).getTime()});
 
       const currentDiscussionRef = firebase.database().ref('users/' + this.userId + '/current_discussion');
-      firebase.database().ref('users/' + this.userId + '/current_discussion/bid_history').child(newBidEvent.key).set({amount: this.bid});
-      currentDiscussionRef.update({bid: this.bid});
+      firebase.database().ref('users/' + this.userId + '/current_discussion/bid_history').child(newBidEvent.key).set({amount: value});
+      currentDiscussionRef.update({bid: value});
 
       if (this.status == 'first_round') {
         this.kickOffSpeaking(this.userId);
@@ -369,8 +387,9 @@ export class ChatroomComponent implements OnInit {
       }
 
       const bidRef = firebase.database().ref('rooms/' + this.room.key + '/current_bids');
-      let bid = {amount: this.bid};
+      let bid = {amount: value};
       bidRef.child(this.userId).set(bid);
+      this.bid = value;
     }
 
   }
@@ -403,7 +422,6 @@ export class ChatroomComponent implements OnInit {
           return;
         }
         const top_bidder = this.all_bids[0];
-        console.log(top_bidder);
         this.kickOffSpeaking(top_bidder.key); 
 
       });

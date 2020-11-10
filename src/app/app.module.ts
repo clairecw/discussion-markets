@@ -15,6 +15,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 // import { MatToolbarModule } from '@angular/material/toolbar';
 import { OrdinalPipe } from './chatroom/ordinal.pipe';
 import { MatButtonModule } from '@angular/material/button';
@@ -51,6 +52,7 @@ const firebaseConfig = {
     BrowserModule,
     CountdownModule,
     AppRoutingModule,
+    MatSlideToggleModule,
     BrowserAnimationsModule,
     FormsModule,
     ReactiveFormsModule,
