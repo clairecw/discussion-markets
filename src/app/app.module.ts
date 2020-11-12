@@ -9,10 +9,11 @@ import { AppComponent } from './app.component';
 import { LoginComponent } from './login/login.component';
 import { RoomlistComponent } from './roomlist/roomlist.component';
 import { AddroomComponent } from './addroom/addroom.component';
-import { ChatroomComponent } from './chatroom/chatroom.component';
+import { ChatroomComponent, HelpDialog } from './chatroom/chatroom.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -45,8 +46,8 @@ const firebaseConfig = {
     RoomlistComponent,
     AddroomComponent,
     ChatroomComponent,
-    OrdinalPipe
-
+    OrdinalPipe,
+    HelpDialog,
   ],
   imports: [
     BrowserModule,
@@ -56,6 +57,7 @@ const firebaseConfig = {
     BrowserAnimationsModule,
     FormsModule,
     ReactiveFormsModule,
+    MatDialogModule,
     MatInputModule,
     MatIconModule,
     MatCardModule,

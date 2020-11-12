@@ -69,6 +69,10 @@ th.mat-header-cell {
   margin: 5px 0 0 2%;
 }
 
+button {
+  margin: 5px;
+}
+
 .chat-message {
   width: 80%;
   min-height: 40px;
