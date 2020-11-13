@@ -49,7 +49,7 @@ export class ChatroomComponent implements OnInit {
   roomForm: FormGroup; topupForm: FormGroup;
 
   nickname = ''; userId = '';
-  roomname = ''; userId2Nickname = null;
+  userId2Nickname = null;
   users = []; status = 'closed';
 
   cd_time = -1;
@@ -63,16 +63,16 @@ export class ChatroomComponent implements OnInit {
 
   // default value
   room = {max_speaking_mins: 2, status: 'closed', end_time: 0, cd_time: 0,
-          current_speaker: "no one", key: '000', current_bids: []};
+          current_speaker: "no one", key: '000', current_bids: [], roomname: ""};
   cd_config: Object = { stopTime: this.room.end_time, format: 'm:ss' };
-  cd_status = 'active';
+  roomname = ''; cd_status = 'active';
   
   displayedColumns: string[] = ['name', 'amount'];
 
   all_bids = [];
   releaseSubmit = true;   // false if button submit, true if release submit
 
-  DEBUG = true;
+  DEBUG = false;
 
   matcher = new MyErrorStateMatcher();
 
@@ -89,7 +89,7 @@ export class ChatroomComponent implements OnInit {
     this.roomname = this.route.snapshot.params.roomname;
     firebase.database().ref('roomusers/').orderByChild('roomname').equalTo(this.roomname).on('value', (resp2: any) => {
       const roomusers = snapshotToArray(resp2);
-      this.users = roomusers.filter(x => x.nickname != 'admin');
+      this.users = roomusers.filter(x => x.type != 'admin');
       for (let user of this.users) {
         this.userId2Nickname.set(user.key, user.nickname);
 
@@ -130,8 +130,7 @@ export class ChatroomComponent implements OnInit {
       if (this.room.end_time == null) {
         if (this.room.cd_time != null) {
           this.cd_config = { leftTime: this.room.cd_time / 1000, format: 'm:ss' };
-          console.log("it do be pauseds");
-          this.countdown.pause();
+          this.print("it do be pauseds");
           this.cd_status = 'paused';
         }
         else {
@@ -142,8 +141,12 @@ export class ChatroomComponent implements OnInit {
       else {
         this.cd_config = { stopTime: this.room.end_time, format: 'm:ss' };
         this.countdown.resume();
+        this.print("it resumed");
         this.cd_status = 'active';
         this.cd_time = (this.room.end_time - (new Date).getTime()) / 1000;
+        if (this.cd_time < 0) {
+          this.resetAuction(null);
+        }
       }
 
       this.current_speaker = this.room.current_speaker;
@@ -153,12 +156,6 @@ export class ChatroomComponent implements OnInit {
       // this.print("current_speaker: " + this.current_speaker);
       // this.print("current_speaker_nickname " + this.current_speaker_nickname);
       // this.print("room updated:" + this.status + ", " + this.current_speaker + ", " + this.cd_time);
-
-      this.ref.detectChanges();
-
-      if (this.cd_time < 0) {
-        this.resetAuction(null);
-      }
 
       if (this.room != null && this.room.current_bids != null) {
         this.all_bids = [];
@@ -176,14 +173,31 @@ export class ChatroomComponent implements OnInit {
           }
         }
       }
+      this.ref.detectChanges();
+      if (this.cd_status == 'paused') {
+        this.countdown.pause();
+      }
+      else {
+        this.countdown.resume();
+      }
     });
   }
 
   pauseSpeaker() {
     this.countdown.pause();
+    let timeLeft = Math.max((this.room.end_time - this.now()) / 1000, 0);
+    let time_spoken_new = (this.room.max_speaking_mins * 60 - timeLeft) / 60;
+
     this.roomRef.update({cd_time: this.countdown.left, end_time: null});
     this.cd_config = { leftTime: this.room.cd_time / 1000, format: 'm:ss' };
     this.cd_status = 'paused';
+    
+    firebase.database().ref('users/' + this.room.current_speaker).once('value', (resp: any) => {
+      const user = resp.val();
+      let time_spoken = user.time_spoken == null ? 0 : parseInt(user.time_spoken);
+      let userRef = firebase.database().ref('users/' + this.room.current_speaker);
+      userRef.update({time_spoken: time_spoken_new + time_spoken});
+    });
   }
 
   resumeSpeaker() {
@@ -202,8 +216,7 @@ export class ChatroomComponent implements OnInit {
     }
     if (first_round) {
       changes['status'] = 'first_round';
-    }
-    else {
+    } else {
       changes['status'] = 'general';
     }
     this.roomRef.update(changes);
@@ -301,9 +314,7 @@ export class ChatroomComponent implements OnInit {
         if (user.nickname != 'admin') {
           let userRef = firebase.database().ref('users/' + user.key);
           userRef.update({endowment: parseInt(user.endowment) + parseInt(form['amount'])});
-
         }
-        
       }
     });
   }
@@ -356,6 +367,10 @@ export class ChatroomComponent implements OnInit {
       const roomRef = firebase.database().ref('rooms/' + this.room.key);
       roomRef.update({status: 'closed'});
     }
+  }
+
+  now() {
+    return (new Date).getTime();
   }
 
   // User userId starts speaking.
@@ -436,7 +451,11 @@ export class ChatroomComponent implements OnInit {
         const userRef = firebase.database().ref('users/' + asdf.userId);
         let user = snapshotToArray(resp)[0];
         const oldEndowment = user.endowment;
-        let spent = Math.ceil((asdf.room.max_speaking_mins * 60 - timeLeft) / 60 * asdf.user.current_discussion.prev_bid);
+        let oldTimeSpoken = user.time_spoken ?? 0;
+        let timeSpoken = (asdf.room.max_speaking_mins * 60 - timeLeft) / 60 + oldTimeSpoken;
+        let spent = Math.ceil(timeSpoken * asdf.user.current_discussion.prev_bid);
+        this.print(oldTimeSpoken + ", " + timeSpoken + ", " + spent);
+        
         userRef.update({endowment: oldEndowment - spent});
 
         const newSpeak = firebase.database().ref('users/' + asdf.userId + '/current_discussion/speaking_history').push();
@@ -449,7 +468,6 @@ export class ChatroomComponent implements OnInit {
 
         if (this.all_bids.length == 0 || this.room.current_bids == null) {
           this.resetAuction(true);
-          this.print("bitch wtf. return");
           return;
         }
         const top_bidder = this.all_bids[0];

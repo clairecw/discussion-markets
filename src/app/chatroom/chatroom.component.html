@@ -14,6 +14,7 @@
         <button mat-raised-button color="warn" (click)="deleteBidHistory()">DELETE ALL BID HISTORY</button>
       </div>
       <div class="users-pane">
+        <h3><i>{{ room.roomname }}</i></h3>
         <h2>Discussion Members</h2>
         <form [formGroup]="topupForm" (ngSubmit)="topUp(topupForm.value)" *ngIf="user != null && user.type == 'admin'">
           <mat-form-field>
@@ -28,8 +29,10 @@
         <button mat-raised-button color="primary" *ngIf="user != null && user.type == 'admin'" (click)="createCDs()">Reset CDs</button>
       </div>
 
-      <b>Bid submit type:</b>
-      <mat-slide-toggle ngDefaultControl [(ngModel)]="releaseSubmit">{{ releaseSubmit ? "on slider release" : "on button click" }}</mat-slide-toggle><br><br>
+      <div *ngIf="user != null && user.type != 'admin'">
+        <b>Bid submit type:</b>
+        <mat-slide-toggle ngDefaultControl [(ngModel)]="releaseSubmit">{{ releaseSubmit ? "on slider release" : "on button click" }}</mat-slide-toggle><br><br>
+      </div>
       <button mat-raised-button aria-label="Exit" (click)="exitChat()">
         Exit Room
       </button>
@@ -68,7 +71,7 @@
           <button mat-raised-button color="primary" (click)="resumeSpeaker()" [disabled]="cd_status != 'paused' || room.current_speaker == 'no one'">Resume Speaker</button>
         </div>
         <!-- <countdown #countdown [config]="{ leftTime: this.cd_time, format: 'm:ss' }" (event)="finishSpeaking($event)"></countdown> -->
-        <countdown #countdown [config]="this.cd_config" (event)="finishSpeaking($event)"></countdown>
+        <countdown #countdown [config]="this.cd_config" (event)="finishSpeaking($event)"></countdown> {{ cd_status == 'paused' ? "PAUSED" : ""}}
         <ng-template #elseBlock>
           <h3>Currently speaking: {{userId2Nickname.get(room.current_speaker)}}</h3>
         </ng-template>
@@ -78,7 +81,7 @@
 
           <h3>Endowment Remaining: {{this.endowment}}</h3>
           <div *ngIf="!releaseSubmit">
-            <mat-slider #bidSlider [disabled]="status == 'closed'" [max]="endowment" [min]=0 [step]=1 [thumbLabel]=true></mat-slider>
+            <mat-slider #bidSlider [disabled]="status == 'closed' || room.current_speaker == user.key" [max]="endowment" [min]=0 [step]=1 [thumbLabel]=true></mat-slider>
             <button mat-raised-button [disabled]="status == 'closed'" (click)="makeBid(bidSlider.value)">Bid!</button>
           </div>
           <div *ngIf="releaseSubmit">

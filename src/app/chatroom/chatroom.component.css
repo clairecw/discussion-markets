@@ -41,6 +41,7 @@ th.mat-header-cell {
 
 .users-pane {
   height: 500px;
+  overflow-y: scroll;
 }
 
 .users-card {
