@@ -49,7 +49,6 @@ export class ChatroomComponent implements OnInit {
   roomForm: FormGroup; topupForm: FormGroup;
 
   nickname = ''; userId = '';
-  userId2Nickname = null;
   users = []; status = 'closed';
 
   cd_time = -1;
@@ -62,10 +61,11 @@ export class ChatroomComponent implements OnInit {
   globalStats = {avgTS: 0, avgBids: 0, numBids: 0};
 
   // default value
-  room = {max_speaking_mins: 2, status: 'closed', end_time: 0, cd_time: 0,
+  room = {max_speaking_mins: 2, status: 'closed', end_time: 0, cd_time: 0, users: [],
           current_speaker: "no one", key: '000', current_bids: [], roomname: ""};
   cd_config: Object = { stopTime: this.room.end_time, format: 'm:ss' };
   roomname = ''; cd_status = 'active';
+  user_nicknames = [];
   
   displayedColumns: string[] = ['name', 'amount'];
 
@@ -83,18 +83,7 @@ export class ChatroomComponent implements OnInit {
               public datepipe: DatePipe,
               private ref: ChangeDetectorRef) {
     this.nickname = localStorage.getItem('nickname');
-    this.userId2Nickname = new Map([
-      ["no one", "no one"]
-  ]);
     this.roomname = this.route.snapshot.params.roomname;
-    firebase.database().ref('roomusers/').orderByChild('roomname').equalTo(this.roomname).on('value', (resp2: any) => {
-      const roomusers = snapshotToArray(resp2);
-      this.users = roomusers.filter(x => x.type != 'admin');
-      for (let user of this.users) {
-        this.userId2Nickname.set(user.key, user.nickname);
-
-      }
-    });
   }
 
   ngOnInit(): void {
@@ -151,25 +140,28 @@ export class ChatroomComponent implements OnInit {
 
       this.current_speaker = this.room.current_speaker;
       if (this.roomRef == null) this.roomRef = firebase.database().ref('rooms/' + this.room.key);
-      this.current_speaker_nickname = this.userId2Nickname.get(this.current_speaker);
 
       // this.print("current_speaker: " + this.current_speaker);
       // this.print("current_speaker_nickname " + this.current_speaker_nickname);
       // this.print("room updated:" + this.status + ", " + this.current_speaker + ", " + this.cd_time);
 
-      if (this.room != null && this.room.current_bids != null) {
-        this.all_bids = [];
-        for (let [key, amount] of Object.entries(this.room.current_bids)) {
-          this.all_bids.push({user: key, amount: amount.amount});
-        }
-        this.all_bids.sort((a, b) => a.amount - b.amount);
+      if (this.room != null) {
+        this.user_nicknames = this.room.users == null ? [] : Object.values(this.room.users);
+        
+        if (this.room.current_bids != null) {
+          this.all_bids = [];
+          for (let [key, amount] of Object.entries(this.room.current_bids)) {
+            this.all_bids.push({user: key, amount: amount.amount});
+          }
+          this.all_bids.sort((a, b) => a.amount - b.amount);
 
-        let i = 0, found = false;
-        for (let x of this.all_bids) {
-          i++;
-          if (x.user == this.user.key) {
-            this.bid_position = i;
-            break;
+          let i = 0, found = false;
+          for (let x of this.all_bids) {
+            i++;
+            if (x.user == this.user.key) {
+              this.bid_position = i;
+              break;
+            }
           }
         }
       }
@@ -320,15 +312,19 @@ export class ChatroomComponent implements OnInit {
   }
 
   exitChat() {
-    firebase.database().ref('roomusers/').orderByChild('roomname').equalTo(this.roomname).on('value', (resp: any) => {
-      let roomuser = [];
-      roomuser = snapshotToArray(resp);
-      const user = roomuser.find(x => x.nickname === this.nickname);
-      if (user !== undefined) {
-        const userRef = firebase.database().ref('roomusers/' + user.key);
-        userRef.update({status: 'offline'});
-      }
-    });
+    // firebase.database().ref('roomusers/').orderByChild('roomname').equalTo(this.roomname).on('value', (resp: any) => {
+    //   let roomuser = [];
+    //   roomuser = snapshotToArray(resp);
+    //   const user = roomuser.find(x => x.nickname === this.nickname);
+    //   if (user !== undefined) {
+    //     const userRef = firebase.database().ref('roomusers/' + user.key);
+    //     userRef.update({status: 'offline'});
+    //   }
+    // });
+
+    const userRef = firebase.database().ref('users/' + this.userId);
+    userRef.update({current_room: 'none', status: 'offline'});
+    firebase.database().ref('rooms/' + this.room.key + '/users/').child(this.userId).remove();
 
     this.router.navigate(['/roomlist']);
   }
@@ -376,7 +372,7 @@ export class ChatroomComponent implements OnInit {
   // User userId starts speaking.
   kickOffSpeaking(userId, amount) {
 
-    this.print(userId + " now speaking; " + this.userId2Nickname.get(userId));
+    this.print(userId + " now speaking; " + this.room.users[userId]);
     
     firebase.database().ref('users/' + userId).once('value', (resp: any) => {
       if (this.room.current_speaker != userId) {
@@ -454,7 +450,7 @@ export class ChatroomComponent implements OnInit {
         let oldTimeSpoken = user.time_spoken ?? 0;
         let timeSpoken = (asdf.room.max_speaking_mins * 60 - timeLeft) / 60 + oldTimeSpoken;
         let spent = Math.ceil(timeSpoken * asdf.user.current_discussion.prev_bid);
-        this.print(oldTimeSpoken + ", " + timeSpoken + ", " + spent);
+        asdf.print(oldTimeSpoken + ", " + timeSpoken + ", " + spent);
         
         userRef.update({endowment: oldEndowment - spent});
 

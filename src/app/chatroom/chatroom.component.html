@@ -23,8 +23,8 @@
           </mat-form-field>
           <button mat-raised-button color="accent" (click)="topUp">Top up all participants</button>
         </form>
-        <mat-card class="users-card" *ngFor="let user of users">
-          <mat-icon>person</mat-icon> <span class="username">{{user.nickname}}</span>
+        <mat-card class="users-card" *ngFor="let nickname of user_nicknames">
+          <mat-icon>person</mat-icon> <span class="username">{{nickname}}</span>
         </mat-card>
         <button mat-raised-button color="primary" *ngIf="user != null && user.type == 'admin'" (click)="createCDs()">Reset CDs</button>
       </div>
@@ -51,7 +51,7 @@
           <table mat-table [dataSource]="all_bids" class="mat-elevation-z8 full-width">
             <ng-container matColumnDef="name">
               <th mat-header-cell *matHeaderCellDef> Participant </th>
-              <td mat-cell *matCellDef="let element"> {{this.userId2Nickname.get(element.user)}} </td>
+              <td mat-cell *matCellDef="let element"> {{room.users[element.user]}} </td>
             </ng-container>
             <ng-container matColumnDef="amount">
               <th mat-header-cell *matHeaderCellDef> Bid amount </th>
@@ -73,7 +73,7 @@
         <!-- <countdown #countdown [config]="{ leftTime: this.cd_time, format: 'm:ss' }" (event)="finishSpeaking($event)"></countdown> -->
         <countdown #countdown [config]="this.cd_config" (event)="finishSpeaking($event)"></countdown> {{ cd_status == 'paused' ? "PAUSED" : ""}}
         <ng-template #elseBlock>
-          <h3>Currently speaking: {{userId2Nickname.get(room.current_speaker)}}</h3>
+          <h3>Currently speaking: {{room.users[room.current_speaker]}}</h3>
         </ng-template>
         <ng-template #nonAdmin>
           <h2 *ngIf="this.all_bids != null && this.all_bids.length; else emptyBids" > Current top bid: {{this.all_bids[0].amount}}</h2>

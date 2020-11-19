@@ -48,22 +48,27 @@ export class RoomlistComponent implements OnInit {
     });
   }
 
-  enterChatRoom(roomname: string) {
-    firebase.database().ref('roomusers/').orderByChild('roomname').equalTo(roomname).on('value', (resp: any) => {
-      let roomuser = [];
-      roomuser = snapshotToArray(resp);
-      const user = roomuser.find(x => x.nickname === this.nickname);
-      if (user !== undefined) {
-        const userRef = firebase.database().ref('roomusers/' + user.key);
-        userRef.update({status: 'online'});
-      } else {
-        const newroomuser = { roomname: '', nickname: '', status: '' };
-        newroomuser.roomname = roomname;
-        newroomuser.nickname = this.nickname;
-        newroomuser.status = 'online';
-        firebase.database().ref('roomusers/').child(this.userId).set(newroomuser);
-      }
-    });
+  enterChatRoom(roomname: string, key: string) {
+
+    const userRef = firebase.database().ref('users/' + this.userId);
+    userRef.update({current_room: key, status: 'online'});
+    firebase.database().ref('rooms/' + key + '/users/').child(this.userId).set(this.nickname);
+    
+    // firebase.database().ref('roomusers/').orderByChild('roomname').equalTo(roomname).on('value', (resp: any) => {
+    //   let roomuser = [];
+    //   roomuser = snapshotToArray(resp);
+    //   const user = roomuser.find(x => x.nickname === this.nickname);
+    //   if (user !== undefined) {
+    //     const userRef = firebase.database().ref('roomusers/' + user.key);
+    //     userRef.update({status: 'online', roomname: roomname});
+    //   } else {
+    //     const newroomuser = { roomname: '', nickname: '', status: '' };
+    //     newroomuser.roomname = roomname;
+    //     newroomuser.nickname = this.nickname;
+    //     newroomuser.status = 'online';
+    //     firebase.database().ref('roomusers/').child(this.userId).set(newroomuser);
+    //   }
+    // });
 
     this.router.navigate(['/chatroom', roomname]);
   }
