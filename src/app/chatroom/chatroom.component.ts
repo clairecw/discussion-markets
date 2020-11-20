@@ -153,7 +153,7 @@ export class ChatroomComponent implements OnInit {
           for (let [key, amount] of Object.entries(this.room.current_bids)) {
             this.all_bids.push({user: key, amount: amount.amount});
           }
-          this.all_bids.sort((a, b) => a.amount - b.amount);
+          this.all_bids.sort((a, b) => b.amount - a.amount);
 
           let i = 0, found = false;
           for (let x of this.all_bids) {
